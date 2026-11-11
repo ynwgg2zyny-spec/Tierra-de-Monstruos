@@ -86,8 +86,7 @@ function drawPreview() {
   const poly = (c, pts) => { g.fillStyle = c; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.fill(); g.stroke(); };
   const rect = (c, x, y, w, h, line = true) => { g.fillStyle = c; g.fillRect(x - w / 2, y, w, h); if (line) g.strokeRect(x - w / 2, y, w, h); };
   // pelo largo por detrás
-  poly('#1a1512', [[-30, 20], [-40, 62], [-26, 52], [-22, 74], [-10, 58], [0, 78], [10, 58], [22, 74], [26, 52], [40, 62], [30, 20]]);
-  // piernas y botas
+    // piernas y botas
   poly('#3a3027', [[-26, 120], [-4, 120], [-6, 170], [-22, 170]]); poly('#3a3027', [[4, 120], [26, 120], [22, 170], [6, 170]]);
   rect('#2a211b', -14, 168, 22, 10); rect('#2a211b', 14, 168, 22, 10);
   // brazos
@@ -108,9 +107,8 @@ function drawPreview() {
   g.beginPath(); g.moveTo(-17, 28); g.lineTo(-4, 31); g.moveTo(17, 28); g.lineTo(4, 31); g.moveTo(-5, 50); g.lineTo(6, 49); g.stroke();
   g.strokeStyle = '#a24a3c'; g.lineWidth = 2; g.beginPath(); g.moveTo(-20, 40); g.lineTo(-12, 47); g.moveTo(-20, 47); g.lineTo(-13, 40); g.stroke();
   g.strokeStyle = '#15100c'; g.lineWidth = 3;
-  // pelo de punta y cinta
-  poly('#1a1512', [[-28, 24], [-34, 4], [-24, 8], [-26, -14], [-12, -2], [-6, -20], [4, -4], [14, -20], [16, -2], [30, -12], [26, 8], [34, 6], [28, 24], [20, 18], [14, 28], [8, 18], [0, 28], [-8, 18], [-14, 28], [-20, 18]]);
-  rect(acc, 0, 12, 52, 7); poly(acc, [[24, 14], [38, 24], [34, 28], [22, 19]]);
+  // pelo corto
+  poly('#1a1512', [[-24, 30], [-30, 18], [-25, 10], [-30, 3], [-22, 0], [-21, -8], [-10, -4], [-4, -13], [6, -6], [15, -11], [17, -1], [30, 4], [26, 10], [30, 18], [25, 30], [22, 18], [-6, 18], [-8, 28], [-14, 18], [-22, 18]]);
   g.restore();
 }
 function initMenu() {

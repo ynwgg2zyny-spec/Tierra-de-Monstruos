@@ -65,31 +65,39 @@ export function buildHumanoid({ skin, outfit, hat, pants = '#3a3027', hair = '#1
   const scar = mat('#a24a3c');
   detail(at(head, new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.011, 0.01), scar), -0.1, 0.14, 0.168)).rotation.set(0, -0.5, 0.7);
   detail(at(head, new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.011, 0.01), scar), -0.1, 0.14, 0.169)).rotation.set(0, -0.5, -0.7);
-  // pelo largo y de punta
-  const cap = at(head, new THREE.Mesh(new THREE.SphereGeometry(0.212, 12, 7, 0, Math.PI * 2, 0, 1.85), mHair), 0, 0.215, -0.02);
-  cap.rotation.x = -0.45; cap.scale.set(0.98, 1.06, 1.04); cap.castShadow = true;
+  // pelo: rapado por los lados y detrás, algo de pelo arriba
+  const skullCap = (theta, tilt, grow) => {
+    const geo = new THREE.SphereGeometry(0.2, 16, 10, 0, Math.PI * 2, 0, theta); geo.rotateX(tilt);
+    const q = geo.attributes.position;
+    for (let i = 0; i < q.count; i++) { // misma forma que el cráneo
+      const y = q.getY(i), k = y < 0 ? 1 + y * 1.6 : 1;
+      q.setX(i, q.getX(i) * k * 0.92 * grow); q.setZ(i, q.getZ(i) * (y < 0 ? 1 + y * 0.7 : 1) * grow); q.setY(i, y * 1.12 * grow);
+    }
+    geo.computeVertexNormals(); return geo;
+  };
+  at(head, new THREE.Mesh(skullCap(1.9, -0.55, 1.06), mHair), 0, 0.2, 0).castShadow = true;
   const hairBack = pivot(head, 0, 0.26, -0.14);
+  // pelo de anime: grandes puntas hacia arriba y a los lados, mechones sobre la frente
   const spike = (par, theta, phi, len, rad, bend) => {
     const d = new THREE.Vector3(Math.sin(phi) * Math.sin(theta), Math.cos(phi), Math.sin(phi) * Math.cos(theta));
     const axis = d.clone().add(bend).normalize();
-    const me = new THREE.Mesh(new THREE.ConeGeometry(rad, len, 5), mHair); me.castShadow = true;
+    const me = new THREE.Mesh(new THREE.ConeGeometry(rad * 1.35, len * (len > 0.15 ? 0.35 : 1), 5), mHair); me.castShadow = true;
     me.quaternion.setFromUnitVectors(UP, axis);
-    me.position.set(d.x * 0.18, d.y * 0.21 + 0.215, d.z * 0.19).addScaledVector(axis, len * 0.4).sub(par.position.clone().setY(par === head ? 0 : par.position.y));
+    me.position.set(d.x * 0.17, d.y * 0.2 + 0.2, d.z * 0.18).addScaledVector(axis, len * (len > 0.15 ? 0.35 : 1) * 0.38);
+    if (par !== head) me.position.sub(par.position);
     par.add(me); return me;
   };
-  for (const th of [-0.5, -0.17, 0.17, 0.48]) spike(head, th, 0.58, 0.14, 0.05, new THREE.Vector3(th * 0.8, -1.5, 0.35));
-  for (const th of [Math.PI, Math.PI - 0.7, Math.PI + 0.7, 0.9, -0.9]) spike(head, th, 0.38, 0.3, 0.075, new THREE.Vector3(0, 0.15, -1.3));
-  for (const s of [-1, 1]) spike(head, s * 1.45, 1.0, 0.26, 0.065, new THREE.Vector3(s * 0.35, -1.4, -0.25));
-  for (const o of [-0.85, -0.42, 0, 0.42, 0.85]) spike(hairBack, Math.PI + o, 1.2, 0.46 - Math.abs(o) * 0.08, 0.085, new THREE.Vector3(o * 0.2, -1.7, -0.45));
-  // cinta en la frente (o sombrero para el mercader)
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  spike(head, -0.2, 0.5, 0.13, 0.06, V(-0.2, -1.5, 0.7));      // un mechón en la frente
+  for (const th of [0.9, -0.9]) spike(head, th, 0.55, 0.36, 0.1, V(Math.sign(th) * 0.4, 0.9, -0.1));   // delante arriba
+  for (const th of [0.35, -0.35, Math.PI]) spike(head, th, 0.15, 0.42, 0.11, V(0, 0.6, -0.5));         // coronilla
+  for (const th of [1.7, -1.7]) spike(head, th, 0.45, 0.4, 0.1, V(Math.sign(th) * 0.5, 0.6, -0.3));    // arriba a los lados
+  for (const th of [1.45, -1.45]) spike(head, th, 1.0, 0.34, 0.095, V(Math.sign(th) * 0.4, 0.15, -0.25)); // lados
+  for (const th of [2.4, -2.4]) spike(head, th, 0.7, 0.38, 0.1, V(Math.sign(th) * 0.3, 0.4, -0.6));    // detrás arriba
+  for (const o of [-0.5, 0, 0.5]) spike(hairBack, Math.PI + o, 1.1, 0.3, 0.095, V(o * 0.6, -0.3, -0.7)); // nuca
+  // sombrero (solo el mercader)
   let tails = null;
-  if (headwear === 'band') {
-    const band = at(head, new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.205, 0.045, 12), mAcc), 0, 0.33, -0.02);
-    band.scale.set(0.95, 1, 1.04); band.rotation.x = -0.28;
-    tails = pivot(head, 0, 0.31, -0.22);
-    at(tails, new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.26, 0.015), mAcc), -0.03, -0.12, 0).rotation.z = 0.12;
-    at(tails, new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.22, 0.015), mAcc), 0.035, -0.1, 0).rotation.z = -0.18;
-  } else {
+  if (headwear === 'hat') {
     at(head, new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.4, 0.05, 10), mAcc), 0, 0.4, 0);
     at(head, new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.16, 10), mAcc), 0, 0.49, 0);
   }
