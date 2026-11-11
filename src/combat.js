@@ -1,5 +1,6 @@
 // Combate: daño, proyectiles, avisos en el suelo (telegrafiado), ondas, partículas y números flotantes
 import * as THREE from 'three';
+import { toonMat, addOutline, OUTLINE } from './toon.js';
 import { G } from './state.js';
 import { heightAt } from './world.js';
 import { R, playerHurtFx, respawn } from './player.js';
@@ -45,8 +46,8 @@ export function playerDied() {
 }
 
 /* ---------------- Proyectiles ---------------- */
-const arrowGeo = new THREE.BoxGeometry(0.05, 0.05, 0.8), arrowMat = new THREE.MeshLambertMaterial({ color: '#e9e2d0' });
-const rockGeo = new THREE.DodecahedronGeometry(0.8, 0), rockMat = new THREE.MeshLambertMaterial({ color: '#8e8676', flatShading: true });
+const arrowGeo = new THREE.BoxGeometry(0.05, 0.05, 0.8), arrowMat = toonMat('#e9e2d0');
+const rockGeo = new THREE.DodecahedronGeometry(0.8, 0), rockMat = toonMat('#8e8676');
 export function spawnArrow(pos, dir, dmg, speed) {
   const m = new THREE.Mesh(arrowGeo, arrowMat); G.scene.add(m);
   const l = Math.hypot(dir.x, dir.y, dir.z);
@@ -54,7 +55,7 @@ export function spawnArrow(pos, dir, dmg, speed) {
 }
 // Roca en parábola hacia un punto (lanzada por el jefe), con marca en el suelo
 export function spawnRock(from, tx, tz, dmg, T = 1.15) {
-  const m = new THREE.Mesh(rockGeo, rockMat); m.castShadow = true; G.scene.add(m);
+  const m = new THREE.Mesh(rockGeo, rockMat); m.castShadow = true; addOutline(m, OUTLINE.thick); G.scene.add(m);
   const ty = heightAt(tx, tz);
   const vy = (ty - from.y + 0.5 * 14 * T * T) / T;
   const tele = telegraph({ x: tx, z: tz, r: 2.4, dur: T });

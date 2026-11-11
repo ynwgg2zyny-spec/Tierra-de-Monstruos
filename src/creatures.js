@@ -17,7 +17,7 @@ class Creature {
     this.hp = this.maxHp = this.def.hp; this.state = 'wander'; this.t = 0; this.walk = 0;
     this.wx = x; this.wz = z; this.flashT = 0; this.bleed = 0; this.kx = 0; this.kz = 0; this.aggro = false; this.alpha = 1;
     this.model = type === 'mono' || type === 'monoFurioso' ? buildMonkey(this.def.color, this.def.face, type === 'monoFurioso' ? 1.05 : 0.9) : buildCat(type);
-    if (type === 'pantera') for (const m of this.model.mats) m.transparent = true;
+    if (type === 'pantera') { for (const m of this.model.mats) m.transparent = true; this.model.outline.transparent = true; }
     G.scene.add(this.model.group);
   }
   get name() { return this.def.n; }
@@ -143,6 +143,7 @@ class Creature {
       const want = this.state === 'stalk' ? Math.max(0.12, Math.min(1, (16 - d) / 14)) : 1;
       this.alpha += (want - this.alpha) * Math.min(1, dt * 4);
       for (const mt of m.mats) mt.opacity = this.alpha;
+      m.outline.uniforms.opacity.value = this.alpha * this.alpha; m.outline.visible = this.alpha > 0.25;
     }
   }
   dispose() { G.scene.remove(this.model.group); removeTele(this.tele); }

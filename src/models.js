@@ -1,9 +1,8 @@
 // Modelos low-poly construidos por código
 import * as THREE from 'three';
+import { toonMat, addOutline, OUTLINE } from './toon.js';
 
-export function mat(color, extra = {}) {
-  return new THREE.MeshLambertMaterial({ color, flatShading: true, ...extra });
-}
+export function mat(color, extra = {}) { return toonMat(color, extra); }
 function box(w, h, d, m, x = 0, y = 0, z = 0) {
   const me = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
   me.position.set(x, y, z); me.castShadow = true; return me;
@@ -45,7 +44,8 @@ export function buildHumanoid({ skin, outfit, hat, pants = '#3a3027' }) {
   };
   const legL = leg(-1), legR = leg(1);
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  return { group: g, body, torso, head, armL: L.sh, armR: R.sh, handR: R.hand, handL: L.hand, legL, legR, mats, weapon: null };
+  const outline = addOutline(g, OUTLINE.thick, true);
+  return { group: g, body, torso, head, armL: L.sh, armR: R.sh, handR: R.hand, handL: L.hand, legL, legR, mats, weapon: null, outline };
 }
 
 export function buildWeapon(id) {
@@ -60,6 +60,7 @@ export function buildWeapon(id) {
     g.add(box(0.01, 1.05, 0.01, mat('#e9e2d0'), -0.0, 0.1, 0));
   }
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  addOutline(g, OUTLINE.thick);
   g.rotation.x = Math.PI / 2; // apunta hacia delante desde la mano
   return g;
 }
@@ -115,7 +116,7 @@ export function buildCat(kind) {
   const tail = pivot(body, 0, 0.12 * sc, -0.65 * sc);
   const t1 = box(0.08 * sc, 0.08 * sc, 0.8 * sc, base, 0, 0, -0.4 * sc); tail.add(t1); tail.rotation.x = 0.5;
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  return { group: g, body, head, legs, tail, mats, quad: true };
+  return { group: g, body, head, legs, tail, mats, quad: true, outline: addOutline(g, OUTLINE.thick, true) };
 }
 
 /* ---------------- Mono ---------------- */
@@ -135,7 +136,7 @@ export function buildMonkey(color = '#7a5233', face = '#d9b48a', sc = 1) {
   const tail = pivot(body, 0, -0.2 * sc, -0.18 * sc);
   tail.add(box(0.06 * sc, 0.06 * sc, 0.6 * sc, base, 0, 0, -0.3 * sc)); tail.rotation.x = -0.9;
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  return { group: g, body, head, legs, tail, mats, quad: false };
+  return { group: g, body, head, legs, tail, mats, quad: false, outline: addOutline(g, OUTLINE.thick, true) };
 }
 
 /* ---------------- Gorila gigante ---------------- */
@@ -163,7 +164,7 @@ export function buildGorilla() {
   const leg = s => { const p = pivot(body, s * 0.38, -0.05, -0.1); p.add(box(0.42, 0.75, 0.45, fur, 0, -0.35, 0)); p.add(box(0.44, 0.15, 0.6, skin, 0, -0.75, 0.08)); return p; };
   const armL = arm(-1), armR = arm(1), legL = leg(-1), legR = leg(1);
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  return { group: g, body, head, armL, armR, legL, legR, mats };
+  return { group: g, body, head, armL, armR, legL, legR, mats, outline: addOutline(g, OUTLINE.boss, true) };
 }
 
 // Animación genérica para criaturas

@@ -4,6 +4,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fbm, hash, mulberry32, lerp, smooth, clamp } from './noise.js';
 import { WORLD, STATION_POS, ARENA_POS } from './data.js';
 import { mat, buildHumanoid } from './models.js';
+import { toonMat, addOutline, instancedOutline, OUTLINE } from './toon.js';
 
 const STEP = 2, N = WORLD.SIZE / STEP; // 130 celdas
 let seed = 1, heights = null;
@@ -100,7 +101,11 @@ function placeVegetation(scene) {
   const r = mulberry32(seed * 7 + 3);
   const col = new THREE.Color();
   for (const [name, k] of Object.entries(kinds)) {
-    k.meshes = k.parts.map(([geo, m]) => { const im = new THREE.InstancedMesh(geo, m, k.n); im.castShadow = name !== 'helecho'; im.receiveShadow = true; im.frustumCulled = false; scene.add(im); return im; });
+    k.meshes = k.parts.map(([geo, m]) => {
+      const im = new THREE.InstancedMesh(geo, m, k.n); im.castShadow = name !== 'helecho'; im.receiveShadow = true; im.frustumCulled = false; scene.add(im);
+      if (name !== 'helecho' && name !== 'venenosa') { im.userData.outline = instancedOutline(im, name === 'gigante' ? OUTLINE.fine * 1.4 : OUTLINE.fine); scene.add(im.userData.outline); }
+      return im;
+    });
     let placed = 0, tries = 0;
     while (placed < k.n && tries < k.n * 20) {
       tries++;
@@ -114,43 +119,65 @@ function placeVegetation(scene) {
       const o = { kind: name, x, z, y: h - 0.05, s, rot: r() * 6.28, r: k.r * s, hp: k.hp, maxHp: k.hp, alive: true, idx: placed, regrow: 0, empty: false };
       objects.push(o); addToGrid(o); setObjVisible(o, true);
       k.parts.forEach(([, , tag], pi) => {
-        if (tag === 'leaf') col.setHSL(0.27 + r() * 0.08, 0.5 + r() * 0.2, 0.22 + r() * 0.1);
-        else if (tag === 'leaf2') col.setHSL(0.24 + r() * 0.08, 0.55, 0.3 + r() * 0.08);
-        else if (tag === 'fern') col.setHSL(0.3 + r() * 0.06, 0.55, 0.28 + r() * 0.1);
+        if (tag === 'leaf') col.setHSL(0.26 + r() * 0.08, 0.62 + r() * 0.2, 0.3 + r() * 0.1);
+        else if (tag === 'leaf2') col.setHSL(0.22 + r() * 0.08, 0.7, 0.38 + r() * 0.08);
+        else if (tag === 'fern') col.setHSL(0.29 + r() * 0.06, 0.68, 0.34 + r() * 0.1);
         else if (tag === 'rock') col.setHSL(0.1, 0.05 + r() * 0.08, 0.42 + r() * 0.12);
         else return;
         k.meshes[pi].setColorAt(placed, col);
       });
       placed++;
     }
-    k.count = placed; k.meshes.forEach(m => { m.count = placed; if (m.instanceColor) m.instanceColor.needsUpdate = true; });
+    k.count = placed; k.meshes.forEach(m => { m.count = placed; if (m.userData.outline) m.userData.outline.count = placed; if (m.instanceColor) m.instanceColor.needsUpdate = true; });
   }
 }
 
 /* ---------------- Terreno y agua ---------------- */
+let waterTex = null;
+// Agua de dibujo animado: azul turquesa con ondas blancas
+function cartoonWaterTexture() {
+  const S = 256, cv = document.createElement('canvas'); cv.width = cv.height = S;
+  const g = cv.getContext('2d'), r = mulberry32(99);
+  g.fillStyle = '#1fa3b8'; g.fillRect(0, 0, S, S);
+  g.fillStyle = '#2bb7c9';
+  for (let i = 0; i < 14; i++) { g.beginPath(); g.ellipse(r() * S, r() * S, 30 + r() * 30, 12 + r() * 10, 0, 0, 6.28); g.fill(); }
+  g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 3; g.lineCap = 'round';
+  for (let i = 0; i < 16; i++) {
+    const x = r() * S, y = r() * S, w = 14 + r() * 16;
+    for (const ox of [0, -S, S]) for (const oy of [0, -S, S]) {
+      g.beginPath(); g.arc(x + ox, y + oy, w / 2, Math.PI * 1.1, Math.PI * 1.9); g.stroke();
+      g.beginPath(); g.arc(x + ox + w * 0.9, y + oy + 1, w / 3, Math.PI * 1.15, Math.PI * 1.85); g.stroke();
+    }
+  }
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(26, 26);
+  t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.NearestFilter;
+  return t;
+}
 function buildTerrain(scene) {
   const R = N + 1; heights = new Float32Array(R * R);
   for (let j = 0; j < R; j++) for (let i = 0; i < R; i++) heights[j * R + i] = rawH(-WORLD.HALF + i * STEP, -WORLD.HALF + j * STEP);
   const geo = new THREE.PlaneGeometry(WORLD.SIZE, WORLD.SIZE, N, N); geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
   for (let v = 0; v < pos.count; v++) pos.setY(v, heightAt(pos.getX(v), pos.getZ(v)));
+  geo.computeVertexNormals(); // normales suaves: bandas de luz limpias
   const ng = geo.toNonIndexed(), p = ng.attributes.position, cols = new Float32Array(p.count * 3), c = new THREE.Color();
   for (let t = 0; t < p.count; t += 3) {
     const cx = (p.getX(t) + p.getX(t + 1) + p.getX(t + 2)) / 3, cz = (p.getZ(t) + p.getZ(t + 1) + p.getZ(t + 2)) / 3;
     const cy = (p.getY(t) + p.getY(t + 1) + p.getY(t + 2)) / 3, slope = Math.abs(p.getY(t) - p.getY(t + 1)) + Math.abs(p.getY(t) - p.getY(t + 2));
     const n = fbm(cx * 0.08, cz * 0.08, seed + 9);
-    if (cy < WORLD.WATER_Y + 0.4) c.set('#6b5a3a');
+    if (cy < WORLD.WATER_Y + 0.4) c.set('#e8d39a');
     else if (Math.hypot(cx - ARENA_POS.x, cz - ARENA_POS.z) < 19 + n * 4) c.setHSL(0.1, 0.12, 0.38 + n * 0.1);
-    else if (Math.hypot(cx - STATION_POS.x, cz - STATION_POS.z) < 11 + n * 4) c.set('#8c6c45');
+    else if (Math.hypot(cx - STATION_POS.x, cz - STATION_POS.z) < 11 + n * 4) c.set('#c79a5e');
     else if (slope > 2.2 || cy > 9) c.setHSL(0.08, 0.06, 0.36 + n * 0.1);
-    else c.setHSL(0.25 + n * 0.07, 0.48, 0.2 + n * 0.11);
+    else c.setHSL(0.24 + n * 0.07, 0.62, 0.3 + n * 0.1);
     for (let k = 0; k < 3; k++) { cols[(t + k) * 3] = c.r; cols[(t + k) * 3 + 1] = c.g; cols[(t + k) * 3 + 2] = c.b; }
   }
-  ng.setAttribute('color', new THREE.BufferAttribute(cols, 3)); ng.computeVertexNormals();
-  const terrain = new THREE.Mesh(ng, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+  ng.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+  const terrain = new THREE.Mesh(ng, toonMat(undefined, { vertexColors: true, flatShading: false }));
   terrain.receiveShadow = true; scene.add(terrain);
+  waterTex = cartoonWaterTexture();
   const water = new THREE.Mesh(new THREE.PlaneGeometry(WORLD.SIZE, WORLD.SIZE, 1, 1).rotateX(-Math.PI / 2),
-    new THREE.MeshLambertMaterial({ color: '#2f7d86', transparent: true, opacity: 0.78 }));
+    toonMat(undefined, { color: '#ffffff', map: waterTex, transparent: true, opacity: 0.9, flatShading: false }));
   water.position.y = WORLD.WATER_Y; scene.add(water);
   // minimapa
   minimapCanvas = document.createElement('canvas'); minimapCanvas.width = minimapCanvas.height = R;
@@ -176,7 +203,7 @@ function buildStation(scene) {
   // vías hacia el borde (las futuras conexiones)
   for (let i = 0; i < 40; i++) add(new THREE.BoxGeometry(0.4, 0.15, 2.6), dark, 8 - i * 1.1, 0.08, -4.5);
   for (const o of [-0.6, 0.6]) add(new THREE.BoxGeometry(44, 0.15, 0.12), metal, -13.5, 0.2, -4.5 + o);
-  scene.add(g);
+  addOutline(g, OUTLINE.fine); scene.add(g);
   solid(x + 2, z + 1.6, 1.2); solid(x + 0.5, z + 1.6, 1.2); solid(x + 3.5, z + 1.6, 1.2);
   merchant = buildHumanoid({ skin: '#c68a5e', outfit: '#3f8a5a', hat: '#e2a440' });
   merchant.group.position.set(x + 2, y + 0.5, z + 0.6);
@@ -187,11 +214,11 @@ function buildRuins(scene) {
   for (let i = 0; i < 12; i++) {
     const a = i / 12 * Math.PI * 2 + 0.1, px = x + Math.cos(a) * 20, pz = z + Math.sin(a) * 20, hgt = 2 + r() * 5;
     const me = new THREE.Mesh(new THREE.BoxGeometry(1.6, hgt, 1.6), stone); me.position.set(px, heightAt(px, pz) + hgt / 2 - 0.2, pz); me.rotation.y = a; me.rotation.z = (r() - 0.5) * 0.2;
-    me.castShadow = me.receiveShadow = true; scene.add(me);
-    const cap = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.4, 1.8), moss); cap.position.set(px, me.position.y + hgt / 2, pz); scene.add(cap);
+    me.castShadow = me.receiveShadow = true; addOutline(me, OUTLINE.fine); scene.add(me);
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.4, 1.8), moss); cap.position.set(px, me.position.y + hgt / 2, pz); addOutline(cap, OUTLINE.fine); scene.add(cap);
     solid(px, pz, 1.1);
   }
-  const head = new THREE.Mesh(new THREE.DodecahedronGeometry(3, 0), stone); head.position.set(x, heightAt(x, z - 26) + 2, z - 27); head.castShadow = true; scene.add(head);
+  const head = new THREE.Mesh(new THREE.DodecahedronGeometry(3, 0), stone); head.position.set(x, heightAt(x, z - 26) + 2, z - 27); head.castShadow = true; addOutline(head, OUTLINE.fine); scene.add(head);
 }
 
 export function buildWorld(scene, sd) {
@@ -213,6 +240,7 @@ export function hitObject(o, tools) {
 }
 export function destroyObject(o, regrow = 200) { if (o.alive && o.kind !== 'solid') { o.alive = false; o.regrow = regrow; setObjVisible(o, false); } }
 export function updateWorld(dt) {
+  if (waterTex) { const k = performance.now() / 1000; waterTex.offset.set(k * 0.012, Math.sin(k * 0.3) * 0.02); }
   for (const o of objects) {
     if (o.regrow > 0 && (!o.alive || o.empty)) {
       o.regrow -= dt;

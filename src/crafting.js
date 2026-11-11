@@ -4,6 +4,7 @@ import { G, isNight } from './state.js';
 import { RECIPES, STRUCTS, STATION_POS, ARENA_POS } from './data.js';
 import { heightAt, isWater, nearby, destroyObject } from './world.js';
 import { mat } from './models.js';
+import { addOutline, OUTLINE } from './toon.js';
 import { equip } from './player.js';
 import { toast } from './ui.js';
 import { save } from './save.js';
@@ -115,7 +116,7 @@ export function rebuildCamp() {
       add(new THREE.CylinderGeometry(0.15, 0.18, hh, 5), wood, x, heightAt(G.camp.x + x, G.camp.z + z) - y + hh / 2, z);
     }
   }
-  G.scene.add(campGroup = g);
+  addOutline(g, OUTLINE.fine); G.scene.add(campGroup = g);
 }
 export function updateCamp(dt) {
   if (!flame) return;

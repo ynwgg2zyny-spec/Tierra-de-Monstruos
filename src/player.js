@@ -49,7 +49,7 @@ export function updatePlayer(dt) {
   // cámara (arrastre)
   cam.yaw -= input.lookX * 0.0065;
   if (G.camMode === 'first') cam.fpPitch = clamp(cam.fpPitch - input.lookY * 0.005, -1.2, 1.2);
-  else cam.pitch = clamp(cam.pitch + input.lookY * 0.004, 0.08, 1.25);
+  else cam.pitch = clamp(cam.pitch + input.lookY * 0.004, -0.15, 1.25);
   input.lookX = input.lookY = 0;
 
   // timers

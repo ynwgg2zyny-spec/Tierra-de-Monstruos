@@ -9,6 +9,36 @@ import { clamp, lerp, rnd } from './noise.js';
 
 let sun, hemi, rain, rainPos, fogDay = new THREE.Color('#9cc7b4'), fogNight = new THREE.Color('#0d1622'), fogDusk = new THREE.Color('#d98a5a'), fogRain = new THREE.Color('#5d6f6a');
 const tmpC = new THREE.Color();
+let dome, clouds, sunDisc, moonDisc;
+const skyDay = new THREE.Color('#7cc4f5'), skyNight = new THREE.Color('#0d1a3a'), skyRain = new THREE.Color('#56676c'), skyTop = new THREE.Color();
+const cloudDay = new THREE.Color('#ffffff'), cloudDusk = new THREE.Color('#ffc2a8'), cloudNight = new THREE.Color('#26334d');
+
+// Cielo de dibujo animado: degradado, sol/luna redondos y nubes planas
+function buildCartoonSky(scene) {
+  dome = new THREE.Mesh(new THREE.SphereGeometry(140, 24, 12), new THREE.ShaderMaterial({
+    uniforms: { top: { value: new THREE.Color() }, horizon: { value: new THREE.Color() } },
+    vertexShader: 'varying float vY; void main(){ vY = normalize(position).y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform vec3 top; uniform vec3 horizon; varying float vY; void main(){ float t = smoothstep(-0.02, 0.3, vY); gl_FragColor = vec4(mix(horizon, top, t), 1.0); }',
+    side: THREE.BackSide, depthWrite: false, fog: false,
+  }));
+  dome.renderOrder = -2; dome.frustumCulled = false; scene.add(dome);
+  const disc = (r, c) => { const m = new THREE.Mesh(new THREE.CircleGeometry(r, 24), new THREE.MeshBasicMaterial({ color: c, fog: false, depthWrite: false })); m.renderOrder = -1; m.frustumCulled = false; scene.add(m); return m; };
+  sunDisc = disc(7, '#fff6c8'); moonDisc = disc(4.5, '#e8eefc');
+  clouds = new THREE.Group(); clouds.renderOrder = -1;
+  const cm = new THREE.MeshBasicMaterial({ color: '#ffffff', fog: false, depthWrite: false }), puff = new THREE.IcosahedronGeometry(1, 1);
+  for (let i = 0; i < 16; i++) {
+    const c = new THREE.Group(), a = i / 16 * Math.PI * 2 + rnd(-0.15, 0.15), R = rnd(100, 122);
+    c.position.set(Math.cos(a) * R, rnd(32, 55), Math.sin(a) * R);
+    const n = 3 + Math.floor(rnd(0, 4)), w = rnd(7, 12);
+    for (let j = 0; j < n; j++) {
+      const p = new THREE.Mesh(puff, cm), s = w * rnd(0.45, 0.8);
+      p.scale.set(s, s * 0.55, s * 0.6); p.position.set((j - (n - 1) / 2) * w * 0.6, rnd(-0.5, 1.5) + (j % 2) * 1.2, rnd(-1, 1));
+      p.renderOrder = -1; p.frustumCulled = false; c.add(p);
+    }
+    c.lookAt(0, c.position.y, 0); clouds.add(c);
+  }
+  clouds.userData.mat = cm; scene.add(clouds);
+}
 let warnT = 0;
 
 export function initSky(scene) {
@@ -17,6 +47,7 @@ export function initSky(scene) {
   sun.shadow.mapSize.set(1024, 1024); const sc = sun.shadow.camera; sc.left = sc.bottom = -30; sc.right = sc.top = 30; sc.near = 1; sc.far = 120;
   sun.shadow.bias = -0.0015; scene.add(sun); scene.add(sun.target);
   scene.fog = new THREE.Fog(fogDay, 25, 95); scene.background = fogDay.clone();
+  buildCartoonSky(scene);
   // lluvia: segmentos que caen alrededor de la cámara
   const N = 900; rainPos = new Float32Array(N * 6);
   for (let i = 0; i < N; i++) { const x = rnd(-25, 25), y = rnd(0, 22), z = rnd(-25, 25); rainPos.set([x, y, z, x + 0.05, y - 0.7, z], i * 6); }
@@ -37,6 +68,16 @@ function updateSky(dt) {
   const dusk = clamp(1 - Math.abs(elev) * 4, 0, 1) * 0.6;
   tmpC.copy(fogNight).lerp(fogDay, day).lerp(fogDusk, dusk * day).lerp(fogRain, w.rain * 0.7 * Math.max(day, 0.3));
   G.scene.fog.color.copy(tmpC); G.scene.background.copy(tmpC);
+  // cielo de caricatura que sigue a la cámara
+  const cp = G.camera.position;
+  dome.position.copy(cp); dome.material.uniforms.horizon.value.copy(tmpC);
+  skyTop.copy(skyNight).lerp(skyDay, day).lerp(skyRain, w.rain * 0.8 * Math.max(day, 0.3));
+  dome.material.uniforms.top.value.copy(skyTop);
+  const sd = new THREE.Vector3(Math.cos(ang), Math.sin(ang), 0.4).normalize();
+  sunDisc.position.copy(cp).addScaledVector(sd, 125); sunDisc.lookAt(cp); sunDisc.visible = sd.y > -0.1 && w.rain < 0.6;
+  moonDisc.position.copy(cp).addScaledVector(sd, -125); moonDisc.lookAt(cp); moonDisc.visible = sd.y < 0.1 && w.rain < 0.6;
+  clouds.position.set(cp.x, 0, cp.z); clouds.rotation.y += dt * 0.004;
+  clouds.userData.mat.color.copy(cloudNight).lerp(cloudDay, day).lerp(cloudDusk, dusk * day).lerp(tmpC, w.rain * 0.6);
   G.scene.fog.near = lerp(25, 10, w.rain); G.scene.fog.far = lerp(isNight() ? 60 : 95, 45, w.rain);
   // lluvia
   rain.visible = w.rain > 0.05; rain.material.opacity = w.rain * 0.55;
