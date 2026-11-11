@@ -1,7 +1,7 @@
 // Arranque, menú y bucle principal
 import * as THREE from 'three';
 import { G } from './state.js';
-import { CLASSES, SKINS, OUTFITS, STATION_POS } from './data.js';
+import { CLASSES, SKINS, OUTFITS, STATION_POS, WEAPONS } from './data.js';
 import { buildWorld, updateWorld, heightAt, merchant } from './world.js';
 import { initInput, took, resetInput } from './input.js';
 import { newPlayer, spawnPlayerModel, updatePlayer, cam } from './player.js';
@@ -73,7 +73,7 @@ function quitToMenu() {
 function refreshMenu() {
   const L = G.look;
   $('#nameIn').value = L.name;
-  $('#classes').innerHTML = Object.entries(CLASSES).map(([k, c]) => `<button class="cls ${L.cls === k ? 'on' : ''}" data-cls="${k}"><b>${c.n}</b><span>${c.d}</span><em>${c.skill}</em></button>`).join('');
+  $('#classes').innerHTML = Object.entries(CLASSES).map(([k, c]) => `<button class="cls ${L.cls === k ? 'on' : ''}" data-cls="${k}"><b>${c.n}</b><span>${c.d}</span><em>${c.skill} · ${WEAPONS[c.weapon].n}</em></button>`).join('');
   $('#swSkin').innerHTML = SKINS.map(c => `<button style="--c:${c}" data-skin="${c}" class="${L.skin === c ? 'on' : ''}" aria-label="Piel"></button>`).join('');
   $('#swOutfit').innerHTML = OUTFITS.map(c => `<button style="--c:${c}" data-outfit="${c}" class="${L.outfit === c ? 'on' : ''}" aria-label="Ropa"></button>`).join('');
   $('#btnCont').hidden = !loadSave();
@@ -93,6 +93,24 @@ function drawPreview() {
   poly(L.outfit, [[-34, 70], [-48, 76], [-50, 92], [-38, 92]]); poly(L.outfit, [[34, 70], [48, 76], [50, 92], [38, 92]]);
   poly(L.skin, [[-49, 92], [-39, 92], [-40, 124], [-50, 124]]); poly(L.skin, [[49, 92], [39, 92], [40, 124], [50, 124]]);
   rect(acc, -45, 114, 12, 6); rect(acc, 45, 114, 12, 6);
+  // arma de la clase (en la mano derecha; el arco en la izquierda)
+  const wpn = CLASSES[L.cls].weapon, wood = '#8a5a2b', grey = '#8d8d86';
+  if (wpn === 'arco') {
+    g.strokeStyle = '#15100c'; g.lineWidth = 6; g.beginPath(); g.arc(-58, 118, 34, -1.25, 1.25); g.stroke();
+    g.strokeStyle = wood; g.lineWidth = 3.5; g.beginPath(); g.arc(-58, 118, 34, -1.25, 1.25); g.stroke();
+    g.strokeStyle = '#e9e2d0'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(-47, 86); g.lineTo(-47, 150); g.stroke();
+    g.strokeStyle = '#15100c'; g.lineWidth = 3;
+  } else if (wpn === 'hacha') {
+    poly(wood, [[43, 74], [49, 74], [49, 140], [43, 140]]);
+    poly(grey, [[48, 74], [66, 66], [66, 92], [48, 86]]);
+  } else if (wpn === 'pala') {
+    poly(wood, [[43, 70], [48, 70], [48, 150], [43, 150]]);
+    poly('#7d868c', [[36, 150], [55, 150], [55, 172], [45.5, 180], [36, 172]]);
+    poly(wood, [[38, 64], [53, 64], [53, 70], [38, 70]]);
+  } else if (wpn === 'lanza') {
+    poly(wood, [[43, 40], [48, 40], [48, 160], [43, 160]]);
+    poly(grey, [[40, 42], [45.5, 18], [51, 42]]);
+  }
   // torso en V
   poly(L.outfit, [[-36, 68], [36, 68], [24, 116], [-24, 116]]);
   poly('#2a2a30', [[-10, 68], [10, 68], [0, 84]]);

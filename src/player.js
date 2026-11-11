@@ -19,8 +19,8 @@ export function newPlayer(look, pos) {
   return {
     x: pos.x, z: pos.z, y: 0, yaw: 0, name: look.name, cls: look.cls, skin: look.skin, outfit: look.outfit,
     hp: cl.hp, maxHp: cl.hp, stamina: 100, hunger: 85, thirst: 80, temp: 50, wet: 0,
-    inv: { madera: 0, piedra: 0, liana: 0, fibra: 0, hierba: 0, obsidiana: 0, fruta: 3, carne: 0, asada: 1, piel: 0, venda: 1, antidoto: 0, botiquin: 0, flechas: 0, colmillo: 0 },
-    jade: 5, weapons: ['punos'], weapon: 'punos', tools: {}, items: {}, water: 0,
+    inv: { madera: 0, piedra: 0, liana: 0, fibra: 0, hierba: 0, obsidiana: 0, fruta: 3, carne: 0, asada: 1, piel: 0, venda: 1, antidoto: 0, botiquin: 0, flechas: look.cls === 'cazador' ? 20 : 0, colmillo: 0 },
+    classWpn: true, jade: 5, weapons: ['punos', cl.weapon], weapon: cl.weapon, tools: look.cls === 'explorador' ? { hacha: true } : {}, items: {}, water: 0,
     status: { veneno: 0, sangrado: 0 },
   };
 }
@@ -32,6 +32,14 @@ export const R = { model: null, iframes: 0, roll: 0, rollX: 0, rollZ: 0, atk: nu
 export function spawnPlayerModel() {
   const P = G.P;
   if (R.model) G.scene.remove(R.model.group);
+  // partidas antiguas: dar el arma propia de la clase
+  const cw = CLASSES[P.cls].weapon;
+  if (cw && !P.classWpn) {
+    P.classWpn = true; if (!P.weapons.includes(cw)) P.weapons.push(cw);
+    if (P.weapon === 'punos') P.weapon = cw;
+    if (cw === 'hacha') P.tools.hacha = true;
+    if (cw === 'arco') P.inv.flechas = Math.max(P.inv.flechas, 20);
+  }
   R.model = buildHumanoid({ skin: P.skin, outfit: P.outfit, hat: CLASSES[P.cls].hat });
   G.scene.add(R.model.group); setWeapon(R.model, P.weapon);
   if (!torch) { torch = new THREE.PointLight(0xffa040, 0, 16, 1.6); G.scene.add(torch); }

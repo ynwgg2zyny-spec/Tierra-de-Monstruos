@@ -141,6 +141,17 @@ export function buildWeapon(id) {
   const wood = mat('#8a5a2b'), dark = mat('#2a2233', { emissive: 0x2a1a44, emissiveIntensity: 0.3 }), stone = mat('#8d8d86');
   if (id === 'garrote') { g.add(box(0.08, 0.9, 0.08, wood, 0, 0.35, 0)); g.add(box(0.18, 0.3, 0.18, mat('#6a4524'), 0, 0.8, 0)); }
   else if (id === 'lanza') { g.add(box(0.06, 1.8, 0.06, wood, 0, 0.6, 0)); const tip = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.3, 4), stone); tip.position.y = 1.62; g.add(tip); }
+  else if (id === 'hacha') {
+    g.add(box(0.055, 0.8, 0.055, wood, 0, 0.32, 0));
+    g.add(box(0.07, 0.16, 0.24, stone, 0, 0.64, 0.1));
+    g.add(box(0.05, 0.2, 0.05, stone, 0, 0.64, 0.23));
+  }
+  else if (id === 'pala') {
+    g.add(box(0.05, 1.15, 0.05, wood, 0, 0.45, 0));
+    g.add(box(0.2, 0.05, 0.05, wood, 0, -0.12, 0));
+    g.add(box(0.24, 0.3, 0.035, mat('#7d868c'), 0, 1.14, 0));
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.12, 4), mat('#7d868c')); tip.rotation.y = Math.PI / 4; tip.scale.z = 0.2; tip.rotation.x = Math.PI; tip.position.y = 1.34; g.add(tip);
+  }
   else if (id === 'machete') { g.add(box(0.06, 0.22, 0.08, wood, 0, 0.05, 0)); g.add(box(0.03, 0.75, 0.14, dark, 0, 0.55, 0.02)); }
   else if (id === 'arco') {
     const c = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.035, 4, 10, Math.PI * 0.9), wood);
@@ -158,7 +169,12 @@ export function setWeapon(model, id) {
   if (id && id !== 'punos') {
     model.weapon = buildWeapon(id);
     if (id === 'arco') { model.weapon.rotation.set(0, 0, 0); model.handL.add(model.weapon); model.weapon.userData.left = true; }
-    else model.handR.add(model.weapon);
+    else {
+      // armas largas: sujetas de pie, como un bastón
+      if (id === 'lanza') { model.weapon.rotation.set(0.12, 0, 0); model.weapon.position.set(0, -0.6, 0.07); }
+      if (id === 'pala') { model.weapon.rotation.set(Math.PI + 0.12, 0, 0); model.weapon.position.set(0, 0.44, 0.07); }
+      model.handR.add(model.weapon);
+    }
   }
 }
 
