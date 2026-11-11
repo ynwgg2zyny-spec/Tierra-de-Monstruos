@@ -16,7 +16,7 @@ export function toonMat(color, extra = {}) {
 }
 
 // Grosor de contorno (en metros, cerca de la cámara)
-export const OUTLINE = { thick: 0.045, boss: 0.07, fine: 0.022 };
+export const OUTLINE = { thick: 0.045, hero: 0.026, boss: 0.07, fine: 0.022 };
 const INK = new THREE.Color('#15100c');
 
 const VS = /* glsl */`
@@ -74,7 +74,7 @@ function prepGeo(geo) {
 // Añade contorno a todas las piezas toon de un modelo. Devuelve el material usado.
 export function addOutline(root, thickness = OUTLINE.thick, own = false) {
   const om = outlineMat(thickness, own), list = [];
-  root.traverse(o => { if (o.isMesh && !o.userData.isOutline && o.material?.isMeshToonMaterial) list.push(o); });
+  root.traverse(o => { if (o.isMesh && !o.userData.isOutline && !o.userData.noOutline && o.material?.isMeshToonMaterial) list.push(o); });
   for (const me of list) {
     prepGeo(me.geometry);
     const ol = new THREE.Mesh(me.geometry, om);

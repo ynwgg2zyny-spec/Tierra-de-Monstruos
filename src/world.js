@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fbm, hash, mulberry32, lerp, smooth, clamp } from './noise.js';
 import { WORLD, STATION_POS, ARENA_POS } from './data.js';
-import { mat, buildHumanoid } from './models.js';
+import { mat, buildHumanoid, animHumanoid } from './models.js';
 import { toonMat, addOutline, instancedOutline, OUTLINE } from './toon.js';
 
 const STEP = 2, N = WORLD.SIZE / STEP; // 130 celdas
@@ -205,7 +205,7 @@ function buildStation(scene) {
   for (const o of [-0.6, 0.6]) add(new THREE.BoxGeometry(44, 0.15, 0.12), metal, -13.5, 0.2, -4.5 + o);
   addOutline(g, OUTLINE.fine); scene.add(g);
   solid(x + 2, z + 1.6, 1.2); solid(x + 0.5, z + 1.6, 1.2); solid(x + 3.5, z + 1.6, 1.2);
-  merchant = buildHumanoid({ skin: '#c68a5e', outfit: '#3f8a5a', hat: '#e2a440' });
+  merchant = buildHumanoid({ skin: '#c68a5e', outfit: '#3f8a5a', hat: '#e2a440', hair: '#5a5550', headwear: 'hat' });
   merchant.group.position.set(x + 2, y + 0.5, z + 0.6);
   scene.add(merchant.group);
 }
@@ -240,6 +240,7 @@ export function hitObject(o, tools) {
 }
 export function destroyObject(o, regrow = 200) { if (o.alive && o.kind !== 'solid') { o.alive = false; o.regrow = regrow; setObjVisible(o, false); } }
 export function updateWorld(dt) {
+  if (merchant) animHumanoid(merchant, 0, 0, -1, false, 0);
   if (waterTex) { const k = performance.now() / 1000; waterTex.offset.set(k * 0.012, Math.sin(k * 0.3) * 0.02); }
   for (const o of objects) {
     if (o.regrow > 0 && (!o.alive || o.empty)) {

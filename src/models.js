@@ -14,38 +14,118 @@ export function flash(model, amount, color = 0xff3b2a) {
   for (const m of model.mats) { m.emissive.setHex(color); m.emissiveIntensity = amount; }
 }
 
-/* ---------------- Humano ---------------- */
-export function buildHumanoid({ skin, outfit, hat, pants = '#3a3027' }) {
+/* ---------------- Humano (protagonista estilizado) ---------------- */
+const UP = new THREE.Vector3(0, 1, 0);
+function cyl(rt, rb, h, m, seg = 7) { const me = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), m); me.castShadow = true; return me; }
+function at(parent, me, x = 0, y = 0, z = 0) { me.position.set(x, y, z); parent.add(me); return me; }
+function detail(me) { me.userData.noOutline = true; me.castShadow = false; return me; }
+// Tronco de 6 caras con frente plano y algo aplanado
+function torsoGeo(rt, rb, h, flat = 0.62) { const g = new THREE.CylinderGeometry(rt, rb, h, 6); g.rotateY(Math.PI / 6); g.scale(1, 1, flat); return g; }
+
+export function buildHumanoid({ skin, outfit, hat, pants = '#3a3027', hair = '#1a1512', headwear = 'band' }) {
   const g = new THREE.Group();
-  const mSkin = mat(skin), mOut = mat(outfit), mPants = mat(pants), mHat = mat(hat || '#6b4a2b'), mBoot = mat('#2a211b');
-  const mats = [mSkin, mOut, mPants, mHat, mBoot];
-  const body = pivot(g, 0, 0, 0);
-  const torso = box(0.56, 0.62, 0.32, mOut, 0, 1.18, 0); body.add(torso);
-  body.add(box(0.58, 0.1, 0.34, mat('#5a4330'), 0, 0.88, 0)); // cinturón
-  const head = pivot(body, 0, 1.55, 0);
-  head.add(box(0.36, 0.36, 0.34, mSkin, 0, 0.12, 0));
-  head.add(box(0.08, 0.06, 0.02, mat('#1b1410'), -0.08, 0.15, 0.175));
-  head.add(box(0.08, 0.06, 0.02, mat('#1b1410'), 0.08, 0.15, 0.175));
-  const hatG = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.38, 0.06, 8), mHat); hatG.position.y = 0.32; head.add(hatG);
-  const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.16, 8), mHat); crown.position.y = 0.42; head.add(crown);
-  const mk = (side) => {
-    const sh = pivot(body, side * 0.37, 1.44, 0);
-    sh.add(box(0.17, 0.5, 0.18, mOut, 0, -0.2, 0));
-    sh.add(box(0.15, 0.2, 0.16, mSkin, 0, -0.52, 0));
-    const hand = pivot(sh, 0, -0.6, 0.02);
-    return { sh, hand };
+  const accent = hat || '#c4473a';
+  const mSkin = mat(skin), mOut = mat(outfit), mPants = mat(pants), mAcc = mat(accent), mBoot = mat('#2a211b'), mHair = mat(hair);
+  const mats = [mSkin, mOut, mPants, mAcc, mBoot, mHair];
+  const ink = mat('#17110d'), white = mat('#f7f3ea'), under = mat('#2a2a30');
+
+  // cadera (pivote principal del cuerpo)
+  const HIP = 0.95, body = pivot(g, 0, HIP, 0);
+  at(body, new THREE.Mesh(torsoGeo(0.21, 0.19, 0.2, 0.72), mPants), 0, 0, 0).castShadow = true;
+  // columna y torso en V
+  const spine = pivot(body, 0, 0.06, 0);
+  at(spine, new THREE.Mesh(torsoGeo(0.3, 0.2, 0.48), mOut), 0, 0.34, 0).castShadow = true;
+  at(spine, new THREE.Mesh(torsoGeo(0.2, 0.2, 0.14), mOut), 0, 0.06, 0);
+  const vneck = detail(at(spine, new THREE.Mesh(new THREE.CircleGeometry(0.1, 3), under), 0, 0.51, 0.158)); vneck.rotation.z = -Math.PI / 2; vneck.scale.set(1.1, 0.8, 1);
+  // fajín con colas
+  at(spine, new THREE.Mesh(torsoGeo(0.215, 0.215, 0.08, 0.66), mAcc), 0, 0.0, 0);
+  const sash = pivot(spine, 0.12, -0.02, 0.1);
+  at(sash, new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.22, 0.02), mAcc), 0, -0.1, 0);
+  at(sash, new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.18, 0.02), mAcc), 0.05, -0.08, 0.01).rotation.z = 0.25;
+  // cuello y cabeza
+  at(spine, cyl(0.06, 0.07, 0.14, mSkin), 0, 0.62, 0);
+  const head = pivot(spine, 0, 0.66, 0); head.scale.setScalar(1.1);
+  const sk = new THREE.SphereGeometry(0.2, 12, 9), sp = sk.attributes.position;
+  for (let i = 0; i < sp.count; i++) {
+    const y = sp.getY(i), k = y < 0 ? 1 + y * 1.6 : 1;
+    sp.setX(i, sp.getX(i) * k * 0.92); sp.setZ(i, sp.getZ(i) * (y < 0 ? 1 + y * 0.7 : 1)); sp.setY(i, y * 1.12);
+  }
+  sk.computeVertexNormals();
+  at(head, new THREE.Mesh(sk, mSkin), 0, 0.2, 0).castShadow = true;
+  // cara
+  for (const s of [-1, 1]) {
+    detail(at(head, new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.07, 0.03), white), s * 0.077, 0.195, 0.176));
+    detail(at(head, new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.066, 0.02), ink), s * 0.068, 0.192, 0.188));
+    detail(at(head, new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.014, 0.01), white), s * 0.058, 0.21, 0.2));
+    const brow = detail(at(head, new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.022, 0.03), mHair), s * 0.078, 0.258, 0.172)); brow.rotation.z = s * -0.22;
+    at(head, new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.075, 0.055), mSkin), s * 0.178, 0.19, -0.01).castShadow = true; // orejas
+  }
+  const nose = detail(at(head, new THREE.Mesh(new THREE.ConeGeometry(0.026, 0.07, 4), mSkin), 0, 0.155, 0.2)); nose.rotation.x = -0.35;
+  const mouth = detail(at(head, new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.013, 0.02), ink), 0.008, 0.085, 0.178)); mouth.rotation.z = 0.12;
+  const scar = mat('#a24a3c');
+  detail(at(head, new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.011, 0.01), scar), -0.1, 0.14, 0.168)).rotation.set(0, -0.5, 0.7);
+  detail(at(head, new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.011, 0.01), scar), -0.1, 0.14, 0.169)).rotation.set(0, -0.5, -0.7);
+  // pelo largo y de punta
+  const cap = at(head, new THREE.Mesh(new THREE.SphereGeometry(0.212, 12, 7, 0, Math.PI * 2, 0, 1.85), mHair), 0, 0.215, -0.02);
+  cap.rotation.x = -0.45; cap.scale.set(0.98, 1.06, 1.04); cap.castShadow = true;
+  const hairBack = pivot(head, 0, 0.26, -0.14);
+  const spike = (par, theta, phi, len, rad, bend) => {
+    const d = new THREE.Vector3(Math.sin(phi) * Math.sin(theta), Math.cos(phi), Math.sin(phi) * Math.cos(theta));
+    const axis = d.clone().add(bend).normalize();
+    const me = new THREE.Mesh(new THREE.ConeGeometry(rad, len, 5), mHair); me.castShadow = true;
+    me.quaternion.setFromUnitVectors(UP, axis);
+    me.position.set(d.x * 0.18, d.y * 0.21 + 0.215, d.z * 0.19).addScaledVector(axis, len * 0.4).sub(par.position.clone().setY(par === head ? 0 : par.position.y));
+    par.add(me); return me;
   };
-  const L = mk(-1), R = mk(1);
+  for (const th of [-0.5, -0.17, 0.17, 0.48]) spike(head, th, 0.58, 0.14, 0.05, new THREE.Vector3(th * 0.8, -1.5, 0.35));
+  for (const th of [Math.PI, Math.PI - 0.7, Math.PI + 0.7, 0.9, -0.9]) spike(head, th, 0.38, 0.3, 0.075, new THREE.Vector3(0, 0.15, -1.3));
+  for (const s of [-1, 1]) spike(head, s * 1.45, 1.0, 0.26, 0.065, new THREE.Vector3(s * 0.35, -1.4, -0.25));
+  for (const o of [-0.85, -0.42, 0, 0.42, 0.85]) spike(hairBack, Math.PI + o, 1.2, 0.46 - Math.abs(o) * 0.08, 0.085, new THREE.Vector3(o * 0.2, -1.7, -0.45));
+  // cinta en la frente (o sombrero para el mercader)
+  let tails = null;
+  if (headwear === 'band') {
+    const band = at(head, new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.205, 0.045, 12), mAcc), 0, 0.33, -0.02);
+    band.scale.set(0.95, 1, 1.04); band.rotation.x = -0.28;
+    tails = pivot(head, 0, 0.31, -0.22);
+    at(tails, new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.26, 0.015), mAcc), -0.03, -0.12, 0).rotation.z = 0.12;
+    at(tails, new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.22, 0.015), mAcc), 0.035, -0.1, 0).rotation.z = -0.18;
+  } else {
+    at(head, new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.4, 0.05, 10), mAcc), 0, 0.4, 0);
+    at(head, new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.16, 10), mAcc), 0, 0.49, 0);
+  }
+  // brazos con codo
+  const arm = (side) => {
+    const sh = pivot(spine, side * 0.33, 0.5, 0);
+    at(sh, new THREE.Mesh(new THREE.SphereGeometry(0.09, 7, 5), mOut));
+    at(sh, cyl(0.088, 0.075, 0.16, mOut), 0, -0.07, 0);
+    at(sh, cyl(0.066, 0.058, 0.2, mSkin), 0, -0.2, 0);
+    const el = pivot(sh, 0, -0.3, 0);
+    at(el, cyl(0.058, 0.05, 0.24, mSkin), 0, -0.11, 0);
+    at(el, cyl(0.064, 0.064, 0.06, mAcc), 0, -0.2, 0);
+    const hand = pivot(el, 0, -0.27, 0.01);
+    at(hand, new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.1, 0.1), mSkin), 0, -0.02, 0);
+    return { sh, el, hand };
+  };
+  const L = arm(-1), R = arm(1);
+  // piernas con rodilla
   const leg = (side) => {
-    const hp = pivot(body, side * 0.15, 0.86, 0);
-    hp.add(box(0.2, 0.62, 0.22, mPants, 0, -0.3, 0));
-    hp.add(box(0.22, 0.18, 0.3, mBoot, 0, -0.72, 0.04));
-    return hp;
+    const hp = pivot(body, side * 0.11, -0.05, 0);
+    at(hp, cyl(0.105, 0.085, 0.42, mPants), 0, -0.2, 0);
+    const kn = pivot(hp, 0, -0.42, 0);
+    at(kn, cyl(0.088, 0.068, 0.36, mPants), 0, -0.17, 0);
+    const an = pivot(kn, 0, -0.38, 0);
+    at(an, new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.13, 0.25), mBoot), 0, -0.035, 0.045);
+    return { hp, kn, an };
   };
-  const legL = leg(-1), legR = leg(1);
-  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  const outline = addOutline(g, OUTLINE.thick, true);
-  return { group: g, body, torso, head, armL: L.sh, armR: R.sh, handR: R.hand, handL: L.hand, legL, legR, mats, weapon: null, outline };
+  const LL = leg(-1), LR = leg(1);
+  g.traverse(o => { if (o.isMesh && !o.userData.noOutline) o.castShadow = true; });
+  const outline = addOutline(g, OUTLINE.hero, true);
+  return {
+    group: g, body, torso: spine, spine, head, hairBack, tails, sash, HIP,
+    armL: L.sh, armR: R.sh, elbowL: L.el, elbowR: R.el, handR: R.hand, handL: L.hand,
+    legL: LL.hp, legR: LR.hp, kneeL: LL.kn, kneeR: LR.kn, ankleL: LL.an, ankleR: LR.an,
+    mats, weapon: null, outline, sw: { hair: 0, hairV: 0, tail: 0, tailV: 0 },
+  };
 }
 
 export function buildWeapon(id) {
@@ -60,7 +140,7 @@ export function buildWeapon(id) {
     g.add(box(0.01, 1.05, 0.01, mat('#e9e2d0'), -0.0, 0.1, 0));
   }
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  addOutline(g, OUTLINE.thick);
+  addOutline(g, OUTLINE.hero);
   g.rotation.x = Math.PI / 2; // apunta hacia delante desde la mano
   return g;
 }
@@ -74,19 +154,70 @@ export function setWeapon(model, id) {
   }
 }
 
-// a: fase de paso, sp: 0..1 velocidad, atk: 0..1 progreso de golpe (o -1), heavy: bool
+// a: fase de paso, sp: 0..1 velocidad, atk: 0..1 progreso de golpe (o -1), heavy: bool, roll: 0..1
+const easeIn = x => x * x, easeOut = x => 1 - (1 - x) * (1 - x) * (1 - x);
+function spring(sw, k, target, dt, stiff = 60, damp = 7) {
+  sw[k + 'V'] += ((target - sw[k]) * stiff - sw[k + 'V'] * damp) * dt; sw[k] += sw[k + 'V'] * dt;
+}
 export function animHumanoid(m, a, sp, atk, heavy, roll) {
-  const s = Math.sin(a) * 0.8 * sp;
-  m.legL.rotation.x = s; m.legR.rotation.x = -s;
-  m.armL.rotation.x = -s * 0.8; m.armR.rotation.x = s * 0.8;
-  m.armR.rotation.z = 0; m.body.rotation.x = 0; m.body.position.y = Math.abs(Math.sin(a)) * 0.06 * sp;
-  if (atk >= 0) {
-    // levantar (0-.4) y descargar (.4-1)
-    const up = heavy ? -2.8 : -2.2;
-    const r = atk < 0.4 ? up * (atk / 0.4) : up + (up * -1 + 0.9) * ((atk - 0.4) / 0.6);
-    m.armR.rotation.x = r; m.body.rotation.y = (atk < 0.4 ? -0.3 : 0.4) * (heavy ? 1.4 : 1);
-  } else m.body.rotation.y = 0;
-  if (roll > 0) { m.body.rotation.x = roll * Math.PI * 2; m.body.position.y = 0.3 * Math.sin(roll * Math.PI); }
+  const now = performance.now() / 1000, dt = Math.min(0.05, now - (m._last || now)); m._last = now;
+  const run = Math.min(1, sp), s = Math.sin(a), c = Math.cos(a), idle = 1 - run, br = Math.sin(now * 2.1);
+  // --- carrera / reposo ---
+  let bodyY = m.HIP + (Math.abs(c) * 0.07 - 0.045) * run - br * 0.004 * idle;
+  let bodyRX = 0, bodyRY = -s * 0.12 * run;
+  let spX = 0.2 * run + br * 0.015 * idle, spY = s * 0.28 * run, spZ = 0;
+  let legL = s * 0.85 * run, legR = -s * 0.85 * run;
+  let knL = (Math.max(0, -c) * 1.25 + 0.15) * run + 0.06 * idle, knR = (Math.max(0, c) * 1.25 + 0.15) * run + 0.06 * idle;
+  let anL = -0.2 * run * Math.max(0, s), anR = -0.2 * run * Math.max(0, -s);
+  let aLX = -s * 0.9 * run + br * 0.03 * idle, aRX = s * 0.9 * run - br * 0.03 * idle;
+  let aLZ = -0.12 - 0.05 * idle, aRZ = 0.12 + 0.05 * idle;
+  let eL = -(0.25 + 1.05 * run) - Math.max(0, -s) * 0.3 * run, eR = -(0.25 + 1.05 * run) - Math.max(0, s) * 0.3 * run;
+  let headX = -spX * 0.6, headY = -spY * 0.5;
+  // --- ataque ---
+  const bow = m.weapon && m.weapon.userData.left;
+  if (atk >= 0 && bow) {
+    const p = Math.min(1, atk / 0.25);
+    aLX = -1.55 * p; aLZ = -0.05; eL = -0.05;
+    aRX = -1.5 * p; aRZ = 0.25; eR = -1.6 * p; spY = -0.35 * p; headY = 0.3 * p;
+  } else if (atk >= 0) {
+    const k = heavy ? 1.35 : 1, w = Math.min(1, atk / 0.4), st = atk < 0.4 ? 0 : easeOut((atk - 0.4) / 0.6);
+    const up = heavy ? -2.9 : -2.3;
+    aRX = atk < 0.4 ? up * easeIn(w) : up + (0.55 - up) * st;
+    aRZ = 0.12 + 0.35 * (atk < 0.4 ? w : 1 - st);
+    eR = atk < 0.4 ? -0.9 * w : -0.9 + 0.75 * st;
+    spY = atk < 0.4 ? 0.45 * k * w : (0.45 - 1.0 * st) * k;
+    spX = atk < 0.4 ? -0.08 * w : -0.08 + 0.38 * st * k;
+    spZ = atk < 0.4 ? -0.08 * w : 0.06 * st;
+    if (heavy) { aLX = aRX * 0.8; aLZ = -0.1; eL = eR; }
+    else { aLX = -0.55 + 0.25 * st; eL = -1.5; aLZ = -0.25; }
+    if (run < 0.3) {
+      legR = -0.45 * (atk < 0.4 ? w * 0.4 : 0.4 + 0.6 * st); legL = 0.35 * (atk < 0.4 ? w * 0.3 : 0.3 + 0.7 * st);
+      knR = 0.25 + 0.3 * st; knL = 0.2 + (heavy ? 0.5 : 0.25) * st;
+      bodyY -= (heavy ? 0.12 : 0.05) * st;
+    }
+    headY = -spY * 0.6; headX = -spX * 0.5;
+  }
+  // --- voltereta ---
+  if (roll > 0) {
+    const tuck = Math.sin(roll * Math.PI);
+    bodyRX = roll * Math.PI * 2; bodyY = m.HIP - 0.4 * tuck;
+    legL = legR = -1.3 * tuck; knL = knR = 2.0 * tuck; spX = 0.6 * tuck;
+    aLX = aRX = -0.9 * tuck; eL = eR = -1.6 * tuck; headX = 0.4 * tuck;
+  }
+  m.body.position.y = bodyY; m.body.rotation.set(bodyRX, bodyRY, 0);
+  m.spine.rotation.set(spX, spY, spZ);
+  m.head.rotation.set(headX, headY, 0);
+  m.legL.rotation.x = legL; m.legR.rotation.x = legR; m.kneeL.rotation.x = knL; m.kneeR.rotation.x = knR;
+  m.ankleL.rotation.x = anL; m.ankleR.rotation.x = anR;
+  m.armL.rotation.set(aLX, 0, aLZ); m.armR.rotation.set(aRX, 0, aRZ);
+  m.elbowL.rotation.x = eL; m.elbowR.rotation.x = eR;
+  // --- pelo y telas con inercia ---
+  const sw = m.sw;
+  spring(sw, 'hair', 0.15 + 0.75 * run + Math.abs(c) * 0.15 * run + (roll > 0 ? 0.6 : 0) + br * 0.03 * idle, dt);
+  spring(sw, 'tail', 0.2 + 1.0 * run + Math.abs(s) * 0.25 * run + (atk >= 0 ? 0.4 : 0), dt, 45, 5);
+  m.hairBack.rotation.set(Math.max(-0.2, sw.hair), 0, s * 0.08 * run);
+  if (m.tails) m.tails.rotation.set(Math.max(0, sw.tail), s * 0.3 * run, 0);
+  m.sash.rotation.set(-Math.max(0, sw.tail) * 0.6, 0, s * 0.15 * run);
 }
 
 /* ---------------- Felinos ---------------- */

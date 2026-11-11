@@ -80,14 +80,37 @@ function refreshMenu() {
   drawPreview();
 }
 function drawPreview() {
-  const cv = $('#prev'), g = cv.getContext('2d'), L = G.look, hat = CLASSES[L.cls].hat;
-  g.clearRect(0, 0, 208, 208); g.save(); g.translate(104, 22); g.scale(1.25, 1.25);
-  const r = (c, x, y, w, h) => { g.fillStyle = c; g.fillRect(x - w / 2, y, w, h); };
-  r(hat, 0, 0, 56, 8); r(hat, 0, -12, 32, 14);
-  r(L.skin, 0, 8, 38, 36); r('#1b1410', -8, 22, 6, 5); r('#1b1410', 8, 22, 6, 5);
-  r(L.outfit, 0, 46, 54, 52); r('#5a4330', 0, 92, 56, 8);
-  r(L.outfit, -36, 48, 15, 40); r(L.outfit, 36, 48, 15, 40); r(L.skin, -36, 88, 13, 14); r(L.skin, 36, 88, 13, 14);
-  r('#3a3027', -12, 100, 20, 40); r('#3a3027', 12, 100, 20, 40); r('#2a211b', -12, 136, 22, 9); r('#2a211b', 12, 136, 22, 9);
+  const cv = $('#prev'), g = cv.getContext('2d'), L = G.look, acc = CLASSES[L.cls].hat;
+  g.clearRect(0, 0, 208, 208); g.save(); g.translate(104, 14); g.scale(1.05, 1.05);
+  g.lineJoin = 'round'; g.lineWidth = 3; g.strokeStyle = '#15100c';
+  const poly = (c, pts) => { g.fillStyle = c; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.fill(); g.stroke(); };
+  const rect = (c, x, y, w, h, line = true) => { g.fillStyle = c; g.fillRect(x - w / 2, y, w, h); if (line) g.strokeRect(x - w / 2, y, w, h); };
+  // pelo largo por detrás
+  poly('#1a1512', [[-30, 20], [-40, 62], [-26, 52], [-22, 74], [-10, 58], [0, 78], [10, 58], [22, 74], [26, 52], [40, 62], [30, 20]]);
+  // piernas y botas
+  poly('#3a3027', [[-26, 120], [-4, 120], [-6, 170], [-22, 170]]); poly('#3a3027', [[4, 120], [26, 120], [22, 170], [6, 170]]);
+  rect('#2a211b', -14, 168, 22, 10); rect('#2a211b', 14, 168, 22, 10);
+  // brazos
+  poly(L.outfit, [[-34, 70], [-48, 76], [-50, 92], [-38, 92]]); poly(L.outfit, [[34, 70], [48, 76], [50, 92], [38, 92]]);
+  poly(L.skin, [[-49, 92], [-39, 92], [-40, 124], [-50, 124]]); poly(L.skin, [[49, 92], [39, 92], [40, 124], [50, 124]]);
+  rect(acc, -45, 114, 12, 6); rect(acc, 45, 114, 12, 6);
+  // torso en V
+  poly(L.outfit, [[-36, 68], [36, 68], [24, 116], [-24, 116]]);
+  poly('#2a2a30', [[-10, 68], [10, 68], [0, 84]]);
+  rect(acc, 0, 110, 52, 9); poly(acc, [[10, 118], [18, 118], [16, 140], [9, 138]]);
+  // cuello y cabeza
+  rect(L.skin, 0, 56, 14, 14);
+  poly(L.skin, [[-24, 18], [24, 18], [24, 42], [12, 58], [-12, 58], [-24, 42]]);
+  g.lineWidth = 0;
+  rect('#f7f3ea', -10, 34, 12, 8, false); rect('#f7f3ea', 10, 34, 12, 8, false);
+  rect('#15100c', -9, 34, 6, 8, false); rect('#15100c', 9, 34, 6, 8, false);
+  g.lineWidth = 3;
+  g.beginPath(); g.moveTo(-17, 28); g.lineTo(-4, 31); g.moveTo(17, 28); g.lineTo(4, 31); g.moveTo(-5, 50); g.lineTo(6, 49); g.stroke();
+  g.strokeStyle = '#a24a3c'; g.lineWidth = 2; g.beginPath(); g.moveTo(-20, 40); g.lineTo(-12, 47); g.moveTo(-20, 47); g.lineTo(-13, 40); g.stroke();
+  g.strokeStyle = '#15100c'; g.lineWidth = 3;
+  // pelo de punta y cinta
+  poly('#1a1512', [[-28, 24], [-34, 4], [-24, 8], [-26, -14], [-12, -2], [-6, -20], [4, -4], [14, -20], [16, -2], [30, -12], [26, 8], [34, 6], [28, 24], [20, 18], [14, 28], [8, 18], [0, 28], [-8, 18], [-14, 28], [-20, 18]]);
+  rect(acc, 0, 12, 52, 7); poly(acc, [[24, 14], [38, 24], [34, 28], [22, 19]]);
   g.restore();
 }
 function initMenu() {
